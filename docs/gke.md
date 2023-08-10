@@ -1,9 +1,9 @@
 # Install Percona Distribution for PostgreSQL on Google Kubernetes Engine (GKE)
 
-Following steps will allow you to install the Operator and use it to manage
+Following steps help you install the Operator and use it to manage
 Percona Distribution for PostgreSQL with the Google Kubernetes Engine. The
 document assumes some experience with Google Kubernetes Engine (GKE).
-For more information on the GKE, see the [Kubernetes Engine Quickstart](https://cloud.google.com/kubernetes-engine/docs/quickstart).
+For more information on GKE, see the [Kubernetes Engine Quickstart](https://cloud.google.com/kubernetes-engine/docs/quickstart).
 
 ## Prerequisites
 
@@ -16,7 +16,7 @@ If you would like to use *your local shell*, install the following:
 
 1. [gcloud](https://cloud.google.com/sdk/docs/quickstarts). This tool is part of the Google Cloud SDK. To install it, select your operating system on the [official Google Cloud SDK documentation page](https://cloud.google.com/sdk/docs) and then follow the instructions.
 
-2. [kubectl](https://cloud.google.com/kubernetes-engine/docs/quickstart#choosing_a_shell). It is the Kubernetes command-line tool you will use to manage and deploy applications. To install the tool, run the following command:
+2. [kubectl](https://cloud.google.com/kubernetes-engine/docs/quickstart#choosing_a_shell). This is the Kubernetes command-line tool you will use to manage and deploy applications. To install the tool, run the following command:
 
     ``` {.bash data-prompt="$" }
     $ gcloud auth login
@@ -25,7 +25,7 @@ If you would like to use *your local shell*, install the following:
 
 ## Create and configure the GKE cluster
 
-You can configure the settings using the `gcloud` tool. You can run it either in the [Cloud Shell](https://cloud.google.com/shell/docs/quickstart) or in your local shell (if you have installed Google Cloud SDK locally on the previous step). The following command will create a cluster named `cluster-1`:
+You can configure the settings using the `gcloud` tool. You can run it either in the [Cloud Shell](https://cloud.google.com/shell/docs/quickstart) or in your local shell (if you have installed Google Cloud SDK locally on the previous step). The following command creates a cluster named `cluster-1`:
 
 ``` {.bash data-prompt="$" }
 $ gcloud container clusters create cluster-1 --project <project name> --zone us-central1-a --cluster-version {{ gkerecommended }} --machine-type n1-standard-4 --num-nodes=3
@@ -81,32 +81,40 @@ $ kubectl create clusterrolebinding cluster-admin-binding --clusterrole cluster-
     $ cd percona-postgresql-operator
     ```
 
-2. Add the `postgres-operator` namespace to Kubernetes, not forgetting to set
-    the correspondent context for further steps:
+2. Create the Kubernetes namespace for your cluster if needed (for example,
+   let's name it `postgres-operator`):
 
     ``` {.bash data-prompt="$" }
     $ kubectl create namespace postgres-operator
-    $ kubectl config set-context $(kubectl config current-context) --namespace=postgres-operator
     ```
+
+    ??? example "Expected output"
+
+        ``` {.text .no-copy}
+        namespace/postgres-operator was created
+        ```
 
     !!! note
 
-        To use different namespace, you should edit *all occurrences* of
-        the `namespace: postgres-operator` line in both `deploy/cr.yaml` and
-        `deploy/bundle.yaml` configuration files.
+        To use different namespace, specify other name instead of
+        `postgres-operator` in the above command, and modify the 
+        `-n postgres-operator` parameter with it in the following steps.
+        You can also omit this parameter completely to deploy everything in the
+        `default` namespace.
 
-3. Deploy the operator with the following command:
+3. Deploy the Operator [using](https://kubernetes.io/docs/reference/using-api/server-side-apply/)
+    the following command:
 
     ``` {.bash data-prompt="$" }
-    $ kubectl apply --server-side -f deploy/bundle.yaml
+    $ kubectl apply --server-side -f deploy/bundle.yaml -n postgres-operator
     ```
 
     ??? example "Expected output"
 
         ```{.text .no-copy}
-        customresourcedefinition.apiextensions.k8s.io/perconapgbackups.pg.percona.com serverside-applied
-        customresourcedefinition.apiextensions.k8s.io/perconapgclusters.pg.percona.com serverside-applied
-        customresourcedefinition.apiextensions.k8s.io/perconapgrestores.pg.percona.com serverside-applied
+        customresourcedefinition.apiextensions.k8s.io/perconapgbackups.pgv2.percona.com serverside-applied
+        customresourcedefinition.apiextensions.k8s.io/perconapgclusters.pgv2.percona.com serverside-applied
+        customresourcedefinition.apiextensions.k8s.io/perconapgrestores.pgv2.percona.com serverside-applied
         customresourcedefinition.apiextensions.k8s.io/postgresclusters.postgres-operator.crunchydata.com serverside-applied
         serviceaccount/percona-postgresql-operator serverside-applied
         role.rbac.authorization.k8s.io/percona-postgresql-operator serverside-applied
@@ -119,42 +127,39 @@ $ kubectl create clusterrolebinding cluster-admin-binding --clusterrole cluster-
 4. Deploy Percona Distribution for PostgreSQL:
 
     ``` {.bash data-prompt="$" }
-    $ kubectl apply -f deploy/cr.yaml
+    $ kubectl apply -f deploy/cr.yaml -n postgres-operator
     ```
 
     ??? example "Expected output"
 
         ```{.text .no-copy}
-        perconapgcluster.pg.percona.com/cluster1 created
+        perconapgcluster.pgv2.percona.com/cluster1 created
         ```
 
-    Creation process will take some time. The process is over when the Operator
-    and PostgreSQL Pods have reached their Running status:
+    Creation process will take some time. The process is over when both
+    Operator and PostgreSQL Pods have reached their Running status:
 
     ``` {.bash data-prompt="$" }
-    $ kubectl get pods
+    $ kubectl get pg -n postgres-operator
     ```
+
     ??? example "Expected output"
 
-        ``` {.text .no-copy}
-        
-        NAME                                           READY   STATUS      RESTARTS   AGE
-        cluster1-backup-7hsq-9ch48                     0/1     Completed   0          35s
-        cluster1-instance1-mtnz-0                      4/4     Running     0          87s
-        cluster1-pgbouncer-f4dcfffc8-lrs2d             2/2     Running     0          87s
-        cluster1-repo-host-0                           2/2     Running     0          87s
-        percona-postgresql-operator-75fd989d98-wvx4h   1/1     Running     0          109s
+        ```{.text .no-copy}
+        NAME       ENDPOINT                                   STATUS   POSTGRES   PGBOUNCER   AGE
+        cluster1   cluster1-pgbouncer.postgres-operator.svc   ready    3          3           143m
         ```
 
-??? note "You can also track the creation process in Google Cloud console via the Object Browser"
+    ??? note "You can also track the creation process in Google Cloud console via the Object Browser"
 
-    When the creation process is finished, it will look as follows:
+        When the creation process is finished, it will look as follows:
 
-    ![image](assets/images/gke-quickstart-object-browser.svg)
+        ![image](assets/images/gke-quickstart-object-browser.svg)
 
 ## Verifying the cluster operation
 
-When creation process is over, you can try to connect to the cluster.
+When creation process is over, `kubectl get pg -n <namespace>` command will show you the
+cluster status as `ready`, and you can try to connect to the cluster.
 
 {% include 'assets/fragments/connectivity.txt' %}
 

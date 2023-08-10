@@ -28,7 +28,7 @@ As an example, using our `cluster1` PostgreSQL cluster, we would see the followi
 Users and databases can be customized in `spec.users` section in the Custom Resource. Section can be changed at the cluster creation time and adjusted over time. Note the following:
 
 - If `spec.users` is set during the cluster creation, the Operator will not create any default users or databases except for PostgreSQL. If you want additional databases, you will need to specify them.
-- For any users added in `spec.users`, the Operator will create a Secret of the `<clusterName>-pguser-<userName>` format. This Secret will contain the user credentials.
+- For each user added in `spec.users`, the Operator will create a Secret of the `<clusterName>-pguser-<userName>` format (such default Secret naming can be altered for the user with the `spec.users.secretName` option). This Secret will contain the user credentials.
 - If no databases are specified, `dbname` and `uri` will not be present in the Secret.
 - If at least one option under the `spec.users.databases` is specified, the first database in the list will be populated into the connection credentials.
 - The Operator does not automatically drop users in case of removed Custom Resource options to prevent accidental data loss.
@@ -156,3 +156,4 @@ $ kubectl patch secret <clusterName>-pguser-<userName> -p '{"stringData":{"passw
 
 For security reasons we do not allow superusers to connect to cluster through pgBouncer by default. You can connect through `primary` service (read more in [exposure documentation](expose.md)).
 
+Otherwise you can use the [proxy.pgBouncer.exposeSuperusers](operator.md#proxy-pgbouncer-exposesuperusers) Custom Resource option to enable superusers connection via pgBouncer.
